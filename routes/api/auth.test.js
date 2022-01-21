@@ -24,8 +24,8 @@ describe("test auth", () => {
 
   test("test register route", async () => {
     const registerData = {
-      name: "Runamuck",
-      email: "runamuck@gmail.com",
+      name: "Runabout",
+      email: "runabout@gmail.com",
       password: "123456",
     };
     const response = await request(app)
@@ -34,10 +34,9 @@ describe("test auth", () => {
 
     expect(response.statusCode).toBe(201);
 
-    const user = await User.findOne(response.body.email);
+    const user = await User.findOne({ email: response.body.email });
     expect(user).toBeTruthy();
     expect(user.name).toBe(registerData.name);
     expect(user.email).toBe(registerData.email);
-    expect(user.password).toBe(registerData.password);
   });
 });
