@@ -3,8 +3,11 @@ const { User } = require("../../model");
 const path = require("path");
 const fs = require("fs/promises");
 const Jimp = require("jimp");
+const { NotFound, BadRequest } = require("http-errors");
 
 const { authenticate, upload } = require("../../middlwares");
+const { sendEmail } = require("../../helpers");
+const { SITE_NAME } = process.env;
 
 const router = express.Router();
 
@@ -46,5 +49,54 @@ router.patch(
     res.json({ avatarURL });
   }
 );
+
+router.get("/verify/:verificationToken", async (req, res, next) => {
+  try {
+    const { verificationToken } = req.params;
+    const user = await User.findOne({
+      verificationToken,
+    });
+    if (!user) {
+      throw new NotFound("User not found");
+    }
+    await User.findByIdAndUpdate(user._id, {
+      verificationToken: null,
+      verify: true,
+    });
+    res.json({
+      message: "Verification successful",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/verify", async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      throw new BadRequest("missing required field email");
+    }
+    const user = await User.findOne({ email });
+    if (!user) {
+      throw new NotFound("User not found");
+    }
+    if (user.verify) {
+      throw new BadRequest("Verification has already been passed");
+    }
+    const { verificationToken } = user;
+    const data = {
+      to: user.email,
+      subject: "Email verification",
+      html: `<a target="_blank" href="${SITE_NAME}/users/verify/${verificationToken}">Подтвердить email</a>`,
+    };
+
+    await sendEmail(data);
+
+    res.json({ message: "Verification email sent" });
+  } catch (error) {
+    next(error);
+  }
+});
 
 module.exports = router;
